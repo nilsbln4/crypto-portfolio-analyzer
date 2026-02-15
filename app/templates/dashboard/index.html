@@ -252,6 +252,8 @@ function getThemeColors() {
 }
 
 let theme = getThemeColors();
+const portfolioId = new URLSearchParams(window.location.search).get('portfolio_id');
+const pidParam = portfolioId ? '?portfolio_id=' + portfolioId : '';
 
 function getBaseLayout() {
     return {
@@ -270,7 +272,7 @@ const config = {displayModeBar: false, responsive: true};
 /* PORTFOLIO PERFORMANCE LINE */
 let originalPerformanceData = null;
 
-fetch('{{ url_for("dashboard.chart_performance") }}')
+fetch('{{ url_for("dashboard.chart_performance") }}' + pidParam)
     .then(r => r.json()).then(d => {
         if (!d.dates.length) return;
         originalPerformanceData = d;
@@ -335,7 +337,7 @@ fetch('{{ url_for("dashboard.chart_performance") }}')
     });
 
 /* PER-ASSET PERFORMANCE LINES */
-fetch('{{ url_for("dashboard.chart_historical") }}')
+fetch('{{ url_for("dashboard.chart_historical") }}' + pidParam)
     .then(r => r.json()).then(d => {
         if (!d.series.length) return;
         const traces = d.series.map((s, i) => ({
@@ -353,7 +355,7 @@ fetch('{{ url_for("dashboard.chart_historical") }}')
     });
 
 /* ALLOCATION TREEMAP */
-fetch('{{ url_for("dashboard.chart_allocation") }}')
+fetch('{{ url_for("dashboard.chart_allocation") }}' + pidParam)
     .then(r => r.json()).then(d => {
         if (!d.labels.length) return;
         Plotly.newPlot('chart-treemap', [{
@@ -379,7 +381,7 @@ fetch('{{ url_for("dashboard.chart_allocation") }}')
 /* 30-DAY RETURNS BAR CHART + PERFORMERS */
 let returnsData = null;
 
-fetch('{{ url_for("dashboard.chart_returns") }}')
+fetch('{{ url_for("dashboard.chart_returns") }}' + pidParam)
     .then(r => r.json()).then(d => {
         if (!d.symbols.length) return;
         returnsData = d;
@@ -403,7 +405,7 @@ fetch('{{ url_for("dashboard.chart_returns") }}')
     });
 
 /* SECTOR BAR CHART */
-fetch('{{ url_for("dashboard.chart_sector") }}')
+fetch('{{ url_for("dashboard.chart_sector") }}' + pidParam)
     .then(r => r.json()).then(d => {
         if (!d.labels.length) return;
         Plotly.newPlot('chart-sector', [{
@@ -419,7 +421,7 @@ fetch('{{ url_for("dashboard.chart_sector") }}')
     });
 
 /* CORRELATION HEATMAP */
-fetch('{{ url_for("dashboard.chart_correlation") }}')
+fetch('{{ url_for("dashboard.chart_correlation") }}' + pidParam)
     .then(r => r.json()).then(d => {
         if (!d.symbols.length) return;
         const annotations = [];
