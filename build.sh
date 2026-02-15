@@ -9,3 +9,8 @@ flask seed
 
 # Fetch historical price data for charts (idempotent, skips cached)
 flask seed-history
+
+# Promote admin if ADMIN_EMAIL is set (idempotent)
+if [ -n "$ADMIN_EMAIL" ]; then
+    flask promote-admin "$ADMIN_EMAIL"
+fi
