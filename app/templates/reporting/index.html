@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}REPORTS{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header"><span class="panel-title">Portfolio Report</span></div>
+    <div class="panel-body">
+        {% if report.has_portfolio %}
+        <div class="grid grid-2">
+            <div>
+                <div class="metric">
+                    <div class="metric-label">Portfolio</div>
+                    <div class="metric-value">{{ report.portfolio_name }}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Current Version</div>
+                    <div class="metric-value">v{{ report.version_num }}</div>
+                </div>
+            </div>
+            <div>
+                {% if report.metrics %}
+                <div class="metric">
+                    <div class="metric-label">HHI</div>
+                    <div class="metric-value">{{ report.metrics.hhi }}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Top-1 Concentration</div>
+                    <div class="metric-value">{{ report.metrics.top1_concentration }}%</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Stablecoin Exposure</div>
+                    <div class="metric-value">{{ report.metrics.stablecoin_exposure }}%</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if report.metrics and report.metrics.interpretations %}
+        <div style="margin-top:12px;">
+            {% for interp in report.metrics.interpretations %}
+            <div class="interp-block">{{ interp }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <h3 style="color:var(--accent-primary);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:16px;margin-bottom:8px;">Holdings</h3>
+        <table class="data-table">
+            <thead><tr><th>Asset</th><th class="num">Weight %</th><th>Sector</th></tr></thead>
+            <tbody>
+                {% for h in report.holdings %}
+                <tr>
+                    <td style="color:var(--accent-info);">{{ h.symbol }}</td>
+                    <td class="num">{{ h.weight }}%</td>
+                    <td>{{ h.category }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if report.recent_transactions %}
+        <h3 style="color:var(--accent-primary);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:16px;margin-bottom:8px;">Recent Changes</h3>
+        <table class="data-table">
+            <thead><tr><th>Date</th><th>Type</th><th>Details</th></tr></thead>
+            <tbody>
+                {% for t in report.recent_transactions %}
+                <tr>
+                    <td>{{ t.date }}</td>
+                    <td>{{ t.type }}</td>
+                    <td style="font-size:11px;">
+                        {% if t.diff and t.diff.changes is defined %}
+                            {% for c in t.diff.changes %}{{ c.asset }}: {{ c.from_weight }}%&rarr;{{ c.to_weight }}% {% endfor %}
+                        {% elif t.diff and t.diff.template is defined %}
+                            Loaded: {{ t.diff.template }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% else %}
+        <p style="color:var(--text-muted);">No portfolio to report on. Load one first.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if admin_report %}
+<div class="panel">
+    <div class="panel-header"><span class="panel-title">System Report (Admin)</span></div>
+    <div class="panel-body">
+        <div class="grid grid-3">
+            <div class="metric">
+                <div class="metric-label">Total Users</div>
+                <div class="metric-value">{{ admin_report.total_users }}</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Active Users</div>
+                <div class="metric-value positive">{{ admin_report.active_users }}</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Portfolios</div>
+                <div class="metric-value">{{ admin_report.total_portfolios }}</div>
+            </div>
+        </div>
+
+        {% if admin_report.sector_exposure %}
+        <h3 style="color:var(--accent-primary);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:16px;margin-bottom:8px;">Aggregate Sector Exposure</h3>
+        <table class="data-table">
+            <thead><tr><th>Sector</th><th class="num">Weight %</th></tr></thead>
+            <tbody>
+                {% for sector, pct in admin_report.sector_exposure.items() %}
+                <tr>
+                    <td>{{ sector }}</td>
+                    <td class="num">{{ pct }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if admin_report.popular_templates %}
+        <h3 style="color:var(--accent-primary);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:16px;margin-bottom:8px;">Most Used Starters</h3>
+        <table class="data-table">
+            <thead><tr><th>Template</th><th class="num">Count</th></tr></thead>
+            <tbody>
+                {% for name, count in admin_report.popular_templates %}
+                <tr><td>{{ name }}</td><td class="num">{{ count }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Compare Versions{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <span class="panel-title">Version Comparison: v{{ version_a.version_num }} vs v{{ version_b.version_num }}</span>
+        <a href="{{ url_for('history.index') }}" class="btn btn-sm btn-secondary">&larr; Back</a>
+    </div>
+    <div class="panel-body">
+        <div style="display:flex;gap:20px;margin-bottom:12px;font-size:11px;color:var(--text-muted);">
+            <span>Portfolio: <strong style="color:var(--text-primary);">{{ version_a.portfolio.name }}</strong></span>
+            <span>v{{ version_a.version_num }}: {{ version_a.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            <span>v{{ version_b.version_num }}: {{ version_b.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>Sector</th>
+                    <th class="num">v{{ version_a.version_num }} Weight</th>
+                    <th class="num">v{{ version_b.version_num }} Weight</th>
+                    <th class="num">Delta</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in comparison %}
+                <tr class="diff-row-{{ row.status }}">
+                    <td>
+                        <span style="font-weight:600;color:var(--accent-info);">{{ row.symbol }}</span>
+                        <span style="color:var(--text-muted);margin-left:4px;">{{ row.name }}</span>
+                    </td>
+                    <td><span class="tag tag-{{ row.category|lower|replace(' ','') }}">{{ row.category }}</span></td>
+                    <td class="num">{% if row.weight_a %}{{ '%.1f'|format(row.weight_a) }}%{% else %}&mdash;{% endif %}</td>
+                    <td class="num">{% if row.weight_b %}{{ '%.1f'|format(row.weight_b) }}%{% else %}&mdash;{% endif %}</td>
+                    <td class="num">
+                        {% if row.status == 'added' %}
+                        <span style="color:var(--accent-green);">+{{ '%.1f'|format(row.delta) }}%</span>
+                        {% elif row.status == 'removed' %}
+                        <span style="color:var(--accent-red);">{{ '%.1f'|format(row.delta) }}%</span>
+                        {% elif row.status == 'changed' %}
+                        <span style="color:var(--accent-amber);">{{ '%+.1f'|format(row.delta) }}%</span>
+                        {% else %}
+                        <span style="color:var(--text-muted);">0.0%</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if risk_comparison %}
+        <div style="margin-top:20px;">
+            <div class="section-title">Risk & Return Comparison</div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th class="num">v{{ version_a.version_num }}</th>
+                        <th class="num">v{{ version_b.version_num }}</th>
+                        <th class="num">Delta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in risk_comparison %}
+                    <tr>
+                        <td style="font-weight:500;">{{ row.label }}</td>
+                        <td class="num">{{ row.val_a }}</td>
+                        <td class="num">{{ row.val_b }}</td>
+                        <td class="num">
+                            {% if row.delta is not none %}
+                            <span style="color:{% if row.improvement == 'better' %}var(--accent-positive){% elif row.improvement == 'worse' %}var(--accent-negative){% else %}var(--text-muted){% endif %};">
+                                {{ '%+.2f'|format(row.delta) }}
+                            </span>
+                            {% else %}
+                            <span style="color:var(--text-muted);">---</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}PORTFOLIO ADJUSTMENTS{% endblock %}
+
+{% block content %}
+{% if not portfolios %}
+<div class="panel">
+    <div class="panel-header"><span class="panel-title">Load Starter Portfolio</span></div>
+    <div class="panel-body">
+        <p style="margin-bottom:12px;color:var(--text-secondary);">Select a predefined portfolio to begin:</p>
+        <div class="grid grid-3">
+            {% for t in templates %}
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">{{ t.name }}</span></div>
+                <div class="panel-body">
+                    {% for h in t.holdings %}
+                    <div style="display:flex;justify-content:space-between;padding:2px 0;">
+                        <span style="color:var(--accent-info);">{{ h.symbol }}</span>
+                        <span>{{ h.weight_pct }}%</span>
+                    </div>
+                    {% endfor %}
+                    <form method="POST" style="margin-top:8px;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="load_predefined">
+                        <input type="hidden" name="template_name" value="{{ t.name }}">
+                        <button type="submit" class="btn btn-primary btn-sm" style="width:100%;">Load</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% else %}
+
+<div class="panel">
+    <div class="panel-header">
+        <span class="panel-title">Adjust Allocations{% if current_version %} — v{{ current_version.version_num }}{% endif %}</span>
+    </div>
+    <div class="panel-body">
+        <form method="POST" id="allocation-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="update_allocations">
+
+            <table class="data-table">
+                <thead>
+                    <tr><th>Asset</th><th>Name</th><th>Sector</th><th class="num">Weight %</th></tr>
+                </thead>
+                <tbody>
+                    {% for asset in assets %}
+                    <tr>
+                        <td style="color:var(--accent-info);font-weight:700;">{{ asset.symbol }}</td>
+                        <td>{{ asset.name }}</td>
+                        <td><span class="tag tag-{{ asset.category|lower|replace(' ','') }}">{{ asset.category }}</span></td>
+                        <td class="num">
+                            <input type="number" name="weight_{{ asset.id }}" class="weight-input"
+                                   value="{{ current_holdings.get(asset.id, 0) }}" min="0" max="100" step="0.1"
+                                   style="width:80px;background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono);padding:4px 8px;text-align:right;"
+                                   oninput="updateTotal()">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+                <div>
+                    <span style="color:var(--text-muted);font-size:11px;">TOTAL: </span>
+                    <span id="weight-total" class="weight-total">0.0%</span>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <label style="color:var(--text-secondary);font-size:11px;cursor:pointer;">
+                        <input type="checkbox" name="normalize"> Auto-normalize
+                    </label>
+                    <button type="submit" class="btn btn-primary">Save Version</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Also allow loading another predefined -->
+<div class="panel">
+    <div class="panel-header"><span class="panel-title">Or Load a Different Starter</span></div>
+    <div class="panel-body">
+        <div style="display:flex;gap:8px;">
+            {% for t in templates %}
+            <form method="POST" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="load_predefined">
+                <input type="hidden" name="template_name" value="{{ t.name }}">
+                <button type="submit" class="btn btn-sm btn-secondary">{{ t.name }}</button>
+            </form>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateTotal() {
+    const inputs = document.querySelectorAll('.weight-input');
+    let total = 0;
+    inputs.forEach(i => { total += parseFloat(i.value) || 0; });
+    const el = document.getElementById('weight-total');
+    el.textContent = total.toFixed(1) + '%';
+    el.className = 'weight-total ' + (Math.abs(total - 100) < 0.01 ? 'valid' : 'invalid');
+}
+document.addEventListener('DOMContentLoaded', updateTotal);
+</script>
+{% endblock %}

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CRPA{% endblock %} | Crypto Risk Portfolio Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header class="header">
+        <a href="{{ url_for('public.home') }}" class="header-brand">CRPA</a>
+        {% if current_user.is_authenticated %}
+        <nav class="header-nav">
+            <a href="{{ url_for('dashboard.index') }}" class="{% if request.endpoint and request.endpoint.startswith('dashboard') %}active{% endif %}">Dashboard</a>
+            <a href="{{ url_for('portfolio.analysis') }}" class="{% if request.endpoint and request.endpoint.startswith('portfolio') %}active{% endif %}">Portfolio</a>
+            <a href="{{ url_for('history.index') }}" class="{% if request.endpoint and request.endpoint.startswith('history') %}active{% endif %}">History</a>
+            <a href="{{ url_for('reporting.index') }}" class="{% if request.endpoint and request.endpoint.startswith('reporting') %}active{% endif %}">Reports</a>
+            {% if current_user.is_admin() %}
+            <a href="{{ url_for('admin.console') }}" class="{% if request.endpoint and request.endpoint.startswith('admin') %}active{% endif %}">Admin</a>
+            {% endif %}
+        </nav>
+        <div class="header-user">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+                <span id="theme-icon">🌙</span>
+            </button>
+            <span class="user-email">{{ current_user.email }}</span>
+            {% if current_user.is_admin() %}<span class="role-badge">ADMIN</span>{% endif %}
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-secondary">Logout</a>
+        </div>
+        {% else %}
+        <div class="header-nav">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+                <span id="theme-icon">🌙</span>
+            </button>
+            <a href="{{ url_for('auth.login') }}">Login</a>
+            <a href="{{ url_for('auth.register') }}">Register</a>
+        </div>
+        {% endif %}
+    </header>
+
+    <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Dark mode toggle functionality
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+
+            // Update charts if the function exists (dashboard page)
+            if (typeof window.updateChartsTheme === 'function') {
+                window.updateChartsTheme();
+            }
+        }
+
+        function updateThemeIcon(theme) {
+            const icons = document.querySelectorAll('#theme-icon');
+            icons.forEach(icon => {
+                icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+            });
+        }
+
+        // Apply saved theme on page load (defaults to dark mode)
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+        })();
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

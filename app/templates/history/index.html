@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <span class="panel-title">Portfolio Change Log</span>
+        <button id="compare-btn" class="btn btn-sm btn-primary" style="display:none;" onclick="compareSelected()">Compare Selected</button>
+    </div>
+    <div class="panel-body">
+        {% if transactions %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width:30px;"></th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Portfolio</th>
+                    <th>Details</th>
+                    <th>Version</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr>
+                    <td>
+                        {% if txn.version_id %}
+                        <input type="checkbox" class="compare-check" value="{{ txn.version_id }}" onchange="updateCompareBtn()">
+                        {% endif %}
+                    </td>
+                    <td>{{ txn.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        {% if txn.type == 'CREATE' %}
+                        <span style="color:var(--accent-green);">CREATE</span>
+                        {% elif txn.type == 'MODIFY' %}
+                        <span style="color:var(--accent-amber);">MODIFY</span>
+                        {% elif txn.type == 'REVERT' %}
+                        <span style="color:var(--accent-info);">REVERT</span>
+                        {% elif txn.type == 'DELETE' %}
+                        <span style="color:var(--accent-red);">DELETE</span>
+                        {% else %}
+                        <span>{{ txn.type }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ txn.portfolio.name }}</td>
+                    <td style="font-size:11px;">
+                        {% if txn.diff_json and txn.diff_json.changes is defined %}
+                            {% for c in txn.diff_json.changes %}
+                            <span class="{% if c.from_weight == 0 %}diff-add{% elif c.to_weight == 0 %}diff-remove{% else %}diff-change{% endif %}">
+                                {{ c.asset }}: {{ c.from_weight }}% &rarr; {{ c.to_weight }}%
+                            </span>
+                            {% if not loop.last %} | {% endif %}
+                            {% endfor %}
+                        {% elif txn.diff_json and txn.diff_json.template is defined %}
+                            Loaded: {{ txn.diff_json.template }}
+                        {% elif txn.diff_json and txn.diff_json.action is defined and txn.diff_json.action == 'revert' %}
+                            Reverted to v{{ txn.diff_json.to_version }}
+                        {% elif txn.diff_json and txn.diff_json.action is defined and txn.diff_json.action == 'delete' %}
+                            Deleted: {{ txn.diff_json.portfolio_name }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if txn.version_id %}
+                        <a href="{{ url_for('history.view_version', version_id=txn.version_id) }}" class="btn btn-sm btn-secondary">v{{ txn.version_id }}</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div style="margin-top:8px;font-size:10px;color:var(--text-muted);">
+            Select exactly 2 versions to compare side-by-side.
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted);">No portfolio changes yet. Load a portfolio to get started.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateCompareBtn() {
+    const checked = document.querySelectorAll('.compare-check:checked');
+    const btn = document.getElementById('compare-btn');
+    btn.style.display = checked.length === 2 ? 'inline-block' : 'none';
+}
+
+function compareSelected() {
+    const checked = document.querySelectorAll('.compare-check:checked');
+    if (checked.length !== 2) return;
+    const ids = Array.from(checked).map(c => c.value).sort((a, b) => a - b);
+    window.location.href = '/history/compare/' + ids[0] + '/' + ids[1];
+}
+</script>
+{% endblock %}

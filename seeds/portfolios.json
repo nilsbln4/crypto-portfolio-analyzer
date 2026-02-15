@@ -1,0 +1,63 @@
+[
+  {
+    "name": "BTC/ETH Core",
+    "holdings": [
+      {"symbol": "BTC", "weight_pct": 60.0},
+      {"symbol": "ETH", "weight_pct": 30.0},
+      {"symbol": "USDC", "weight_pct": 10.0}
+    ]
+  },
+  {
+    "name": "Balanced Crypto Exposure",
+    "holdings": [
+      {"symbol": "BTC", "weight_pct": 30.0},
+      {"symbol": "ETH", "weight_pct": 25.0},
+      {"symbol": "SOL", "weight_pct": 15.0},
+      {"symbol": "LINK", "weight_pct": 10.0},
+      {"symbol": "UNI", "weight_pct": 5.0},
+      {"symbol": "AAVE", "weight_pct": 5.0},
+      {"symbol": "USDC", "weight_pct": 10.0}
+    ]
+  },
+  {
+    "name": "High-Risk Speculative",
+    "holdings": [
+      {"symbol": "SOL", "weight_pct": 25.0},
+      {"symbol": "AVAX", "weight_pct": 20.0},
+      {"symbol": "ARB", "weight_pct": 15.0},
+      {"symbol": "LINK", "weight_pct": 15.0},
+      {"symbol": "UNI", "weight_pct": 15.0},
+      {"symbol": "AAVE", "weight_pct": 10.0}
+    ]
+  },
+  {
+    "name": "Top 10 Market Cap",
+    "holdings": [
+      {"symbol": "BTC", "weight_pct": 30},
+      {"symbol": "ETH", "weight_pct": 20},
+      {"symbol": "BNB", "weight_pct": 8},
+      {"symbol": "SOL", "weight_pct": 8},
+      {"symbol": "XRP", "weight_pct": 7},
+      {"symbol": "ADA", "weight_pct": 5},
+      {"symbol": "DOGE", "weight_pct": 5},
+      {"symbol": "AVAX", "weight_pct": 5},
+      {"symbol": "DOT", "weight_pct": 5},
+      {"symbol": "LINK", "weight_pct": 4},
+      {"symbol": "USDC", "weight_pct": 3}
+    ]
+  },
+  {
+    "name": "DeFi Focused",
+    "holdings": [
+      {"symbol": "UNI", "weight_pct": 18},
+      {"symbol": "AAVE", "weight_pct": 18},
+      {"symbol": "MKR", "weight_pct": 15},
+      {"symbol": "LDO", "weight_pct": 12},
+      {"symbol": "CRV", "weight_pct": 10},
+      {"symbol": "COMP", "weight_pct": 8},
+      {"symbol": "SNX", "weight_pct": 7},
+      {"symbol": "DYDX", "weight_pct": 7},
+      {"symbol": "USDC", "weight_pct": 5}
+    ]
+  }
+]

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.symbol }}{% endblock %}
+
+{% block content %}
+<div class="grid grid-2-1">
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">{{ asset.symbol }} — {{ asset.name }}</span></div>
+        <div class="panel-body">
+            <div id="asset-chart" class="chart-container" style="min-height:350px;"></div>
+        </div>
+    </div>
+    <div>
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">Info</span></div>
+            <div class="panel-body">
+                <div class="metric">
+                    <div class="metric-label">Category</div>
+                    <div class="metric-value"><span class="tag tag-{{ asset.category|lower|replace(' ','') }}">{{ asset.category }}</span></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">CoinGecko ID</div>
+                    <div class="metric-value" style="font-size:12px;">{{ asset.coingecko_id }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">Market Data</span></div>
+            <div class="panel-body">
+                {% if current_price %}
+                <div class="metric">
+                    <div class="metric-label">Price</div>
+                    <div class="metric-value">${{ "%.2f"|format(current_price) }}</div>
+                </div>
+                {% endif %}
+                {% if market_cap %}
+                <div class="metric">
+                    <div class="metric-label">Market Cap</div>
+                    <div class="metric-value" style="font-size:14px;">${{ "%.0f"|format(market_cap / 1e9) }}B</div>
+                </div>
+                {% endif %}
+                {% if volume %}
+                <div class="metric">
+                    <div class="metric-label">24h Volume</div>
+                    <div class="metric-value" style="font-size:14px;">${{ "%.0f"|format(volume / 1e6) }}M</div>
+                </div>
+                {% endif %}
+                {% if vol_proxy is not none %}
+                <div class="metric">
+                    <div class="metric-label">30D Ann. Volatility</div>
+                    <div class="metric-value {% if vol_proxy > 80 %}warning{% endif %}">{{ vol_proxy }}%</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dates = {{ dates | tojson }};
+const prices = {{ prices | tojson }};
+Plotly.newPlot('asset-chart', [{
+    x: dates, y: prices, type: 'scatter', mode: 'lines',
+    line: {color: '#4a7bbd', width: 1.5},
+    fill: 'tozeroy', fillcolor: 'rgba(74,123,189,0.05)',
+}], {
+    paper_bgcolor: '#1a1a1a', plot_bgcolor: '#1a1a1a',
+    font: {family: 'JetBrains Mono', color: '#888', size: 11},
+    margin: {t: 10, r: 20, b: 40, l: 60},
+    xaxis: {gridcolor: '#2a2a2a', rangeslider: {visible: true, bgcolor: '#111'}},
+    yaxis: {gridcolor: '#2a2a2a', title: 'USD'},
+});
+</script>
+{% endblock %}

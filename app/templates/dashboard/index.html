@@ -1,0 +1,533 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+{% if not has_portfolio %}
+<div class="panel">
+    <div class="panel-header"><span class="panel-title">No Active Portfolio</span></div>
+    <div class="panel-body empty-state">
+        <p>Load a predefined portfolio to get started.</p>
+        <a href="{{ url_for('portfolio.adjustments') }}" class="btn btn-primary">Load Portfolio</a>
+    </div>
+</div>
+{% else %}
+
+<!-- PORTFOLIO SELECTOR -->
+<div class="panel" style="margin-bottom:20px;">
+    <div class="panel-header">
+        <div class="portfolio-selector">
+            <span style="color:var(--text-muted);font-size:11px;font-weight:500;margin-right:8px;">VIEWING:</span>
+            <select id="portfolio-select" class="form-input" onchange="location.href='/dashboard?portfolio_id='+this.value">
+                {% for p in portfolios %}
+                <option value="{{ p.id }}" {% if portfolio.name == p.name %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <span style="color:var(--text-muted);font-size:11px;margin-left:8px;">v{{ portfolio.version }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 1: PORTFOLIO INFO + RETURNS -->
+<div class="grid grid-4" style="margin-bottom:20px;">
+    <div class="panel">
+        <div class="panel-body">
+            <div class="metric">
+                <div class="metric-label">Portfolio</div>
+                <div class="metric-value" style="font-size:17px;">{{ portfolio.name }}</div>
+            </div>
+            <div class="metric" style="margin-top:6px;">
+                <div class="metric-label">Version</div>
+                <div class="metric-value" style="font-size:14px;color:var(--text-muted);">v{{ portfolio.version }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-body">
+            <div class="metric">
+                <div class="metric-label">1D Return</div>
+                <div class="metric-value {% if returns and returns.portfolio_return_1d is not none and returns.portfolio_return_1d > 0 %}positive{% elif returns and returns.portfolio_return_1d is not none and returns.portfolio_return_1d < 0 %}negative{% endif %}">{% if returns and returns.portfolio_return_1d is not none %}{{ returns.portfolio_return_1d }}%{% else %}---{% endif %}</div>
+            </div>
+            <div class="metric" style="margin-top:6px;">
+                <div class="metric-label">7D Return</div>
+                <div class="metric-value {% if returns and returns.portfolio_return_7d is not none and returns.portfolio_return_7d > 0 %}positive{% elif returns and returns.portfolio_return_7d is not none and returns.portfolio_return_7d < 0 %}negative{% endif %}" style="font-size:14px;">{% if returns and returns.portfolio_return_7d is not none %}{{ returns.portfolio_return_7d }}%{% else %}---{% endif %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-body">
+            <div class="metric">
+                <div class="metric-label">30D Return</div>
+                <div class="metric-value {% if returns and returns.portfolio_return_30d is not none and returns.portfolio_return_30d > 0 %}positive{% elif returns and returns.portfolio_return_30d is not none and returns.portfolio_return_30d < 0 %}negative{% endif %}">{% if returns and returns.portfolio_return_30d is not none %}{{ returns.portfolio_return_30d }}%{% else %}---{% endif %}</div>
+            </div>
+            <div class="metric" style="margin-top:6px;">
+                <div class="metric-label">90D Return</div>
+                <div class="metric-value {% if returns and returns.portfolio_return_90d is not none and returns.portfolio_return_90d > 0 %}positive{% elif returns and returns.portfolio_return_90d is not none and returns.portfolio_return_90d < 0 %}negative{% endif %}" style="font-size:14px;">{% if returns and returns.portfolio_return_90d is not none %}{{ returns.portfolio_return_90d }}%{% else %}---{% endif %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-body">
+            <div class="metric">
+                <div class="metric-label">Sharpe Ratio</div>
+                <div class="metric-value">{{ metrics.sharpe_ratio if metrics.sharpe_ratio is not none else '---' }}</div>
+            </div>
+            <div class="metric" style="margin-top:6px;">
+                <div class="metric-label">Beta vs BTC</div>
+                <div class="metric-value" style="font-size:14px;">{{ metrics.portfolio_beta if metrics.portfolio_beta is not none else '---' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 2: RISK METRIC CARDS -->
+<div class="grid grid-4" style="margin-bottom:20px;">
+    <div class="panel">
+        <div class="panel-body">
+            <div class="metric">
+                <div class="metric-label">Top-1 Concentration</div>
+                <div class="metric-value {% if metrics.top1_concentration >= 50 %}warning{% endif %}">{{ metrics.top1_concentration }}%</div>
+            </div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-body">
+            <div class="metric">
+                <div class="metric-label">HHI</div>
+                <div class="metric-value {% if metrics.hhi >= 5000 %}warning{% endif %}">{{ metrics.hhi }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-body">
+            <div class="metric">
+                <div class="metric-label">VaR (95%)</div>
+                <div class="metric-value {% if metrics.var_95 is not none and metrics.var_95 > 5 %}warning{% endif %}">{% if metrics.var_95 is not none %}{{ metrics.var_95 }}%{% else %}---{% endif %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-body">
+            <div class="metric">
+                <div class="metric-label">Diversification</div>
+                <div class="metric-value">{% if metrics.diversification_score is not none %}{{ metrics.diversification_score }}/100{% else %}---{% endif %}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RISK INTERPRETATIONS -->
+{% if metrics.interpretations %}
+<div class="panel" style="margin-bottom:20px;">
+    <div class="panel-header"><span class="panel-title">Risk Analysis</span></div>
+    <div class="panel-body">
+        {% for interp in metrics.interpretations %}
+        <div class="interp-block">{{ interp }}</div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- TOP & BOTTOM PERFORMERS -->
+<div class="panel" style="margin-bottom:20px;">
+    <div class="panel-header">
+        <span class="panel-title">Top & Bottom Performers</span>
+        <div class="performer-toggle">
+            <button class="btn btn-sm performer-tf-btn active" data-tf="30d" onclick="setPerformerTimeframe('30d')">30D</button>
+            <button class="btn btn-sm performer-tf-btn" data-tf="7d" onclick="setPerformerTimeframe('7d')">7D</button>
+        </div>
+    </div>
+    <div class="panel-body">
+        <div class="grid grid-2">
+            <div>
+                <div class="section-title" style="color:var(--accent-positive);">Top Performers</div>
+                <div id="top-performers"></div>
+            </div>
+            <div>
+                <div class="section-title" style="color:var(--accent-negative);">Bottom Performers</div>
+                <div id="bottom-performers"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 3: PORTFOLIO PERFORMANCE + PER-ASSET LINES -->
+<div class="grid grid-2" style="margin-bottom:20px;">
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">Portfolio Performance (Weighted Index)</span></div>
+        <div class="panel-body">
+            <div id="chart-performance" class="chart-container"></div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">Per-Asset Performance</span></div>
+        <div class="panel-body">
+            <div id="chart-historical" class="chart-container"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 4: ALLOCATION TREEMAP + RETURNS BAR -->
+<div class="grid grid-2" style="margin-bottom:20px;">
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">Allocation</span></div>
+        <div class="panel-body">
+            <div id="chart-treemap" class="chart-container"></div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">30-Day Returns by Asset</span></div>
+        <div class="panel-body">
+            <div id="chart-returns" class="chart-container"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 5: SECTOR + CORRELATION + VOLATILITY -->
+<div class="grid grid-3" style="margin-bottom:20px;">
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">Sector Exposure</span></div>
+        <div class="panel-body">
+            <div id="chart-sector" class="chart-container"></div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">Correlation Heatmap</span></div>
+        <div class="panel-body">
+            <div id="chart-correlation" class="chart-container"></div>
+        </div>
+    </div>
+    {% if metrics.volatility_contributions %}
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">Volatility Contribution</span></div>
+        <div class="panel-body">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Asset</th>
+                        <th class="num">Weight</th>
+                        <th class="num">Vol %</th>
+                        <th class="num">Contrib</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in metrics.volatility_contributions %}
+                    <tr>
+                        <td style="color:var(--accent-info);font-weight:600;">{{ v.symbol }}</td>
+                        <td class="num">{{ v.weight_pct }}</td>
+                        <td class="num">{{ v.volatility }}</td>
+                        <td class="num">{{ v.contribution }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if has_portfolio %}
+<script>
+// Get theme colors dynamically
+function getThemeColors() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+        return {
+            bg: '#1a1f2e',
+            grid: '#2d3748',
+            text: '#a0aec0',
+            colors: ['#63b3ed','#4299e1','#48bb78','#ed8936','#f56565','#9f7aea','#00b5d8','#dd6b20']
+        };
+    } else {
+        return {
+            bg: '#ffffff',
+            grid: '#edf2f7',
+            text: '#4a5568',
+            colors: ['#1a365d','#2b6cb0','#38a169','#d69e2e','#e53e3e','#805ad5','#00b5d8','#dd6b20']
+        };
+    }
+}
+
+let theme = getThemeColors();
+
+function getBaseLayout() {
+    return {
+        paper_bgcolor: theme.bg,
+        plot_bgcolor: theme.bg,
+        font: {family: 'IBM Plex Sans, sans-serif', color: theme.text, size: 12},
+        margin: {t: 20, r: 20, b: 40, l: 50},
+        xaxis: {gridcolor: theme.grid, zeroline: false},
+        yaxis: {gridcolor: theme.grid, zeroline: false},
+    };
+}
+
+let baseLayout = getBaseLayout();
+const config = {displayModeBar: false, responsive: true};
+
+/* PORTFOLIO PERFORMANCE LINE */
+let originalPerformanceData = null;
+
+fetch('{{ url_for("dashboard.chart_performance") }}')
+    .then(r => r.json()).then(d => {
+        if (!d.dates.length) return;
+        originalPerformanceData = d;
+
+        const rebaseData = (dates, values, count) => {
+            if (!count || count >= dates.length) {
+                return values;
+            }
+            const subset = values.slice(-count);
+            const firstVal = subset[0];
+            if (firstVal === 0) return subset;
+            return subset.map(v => (v / firstVal) * 100);
+        };
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const lineColor = isDark ? '#63b3ed' : '#1a365d';
+        const fillColor = isDark ? 'rgba(99,179,237,0.1)' : 'rgba(26,54,93,0.06)';
+
+        Plotly.newPlot('chart-performance', [{
+            x: d.dates, y: d.values, type: 'scatter', mode: 'lines',
+            fill: 'tozeroy',
+            fillcolor: fillColor,
+            line: {color: lineColor, width: 2},
+            hovertemplate: '%{x}<br>Index: %{y:.1f}<extra></extra>',
+        }], {
+            ...baseLayout,
+            margin: {t: 10, r: 20, b: 50, l: 50},
+            xaxis: {...baseLayout.xaxis,
+                rangeselector: {buttons: [
+                    {count: 7, label: '7D', step: 'day', name: '7d'},
+                    {count: 30, label: '30D', step: 'day', name: '30d'},
+                    {count: 90, label: '90D', step: 'day', name: '90d'},
+                    {step: 'all', label: 'ALL', name: 'all'}
+                ], font: {size: 10}}
+            },
+            yaxis: {...baseLayout.yaxis, title: {text: 'Index (100)', font: {size: 11}}},
+        }, config);
+
+        // Handle range selector changes to rebase the index
+        const plotDiv = document.getElementById('chart-performance');
+        plotDiv.on('plotly_relayout', (eventData) => {
+            if (eventData['xaxis.range[0]'] || eventData['xaxis.autorange']) {
+                let count = null;
+                if (eventData['xaxis.range[0]']) {
+                    const startDate = new Date(eventData['xaxis.range[0]']);
+                    const endDate = new Date(eventData['xaxis.range[1]'] || d.dates[d.dates.length - 1]);
+                    count = d.dates.filter(date => {
+                        const dt = new Date(date);
+                        return dt >= startDate && dt <= endDate;
+                    }).length;
+                }
+
+                const rebasedValues = rebaseData(d.dates, d.values, count);
+                const startIdx = count ? d.dates.length - count : 0;
+
+                Plotly.restyle('chart-performance', {
+                    x: [d.dates.slice(startIdx)],
+                    y: [rebasedValues]
+                });
+            }
+        });
+    });
+
+/* PER-ASSET PERFORMANCE LINES */
+fetch('{{ url_for("dashboard.chart_historical") }}')
+    .then(r => r.json()).then(d => {
+        if (!d.series.length) return;
+        const traces = d.series.map((s, i) => ({
+            x: s.dates, y: s.values, type: 'scatter', mode: 'lines',
+            name: s.name,
+            line: {color: theme.colors[i % theme.colors.length], width: 1.5},
+            hovertemplate: s.name + '<br>%{x}<br>%{y:.1f}<extra></extra>',
+        }));
+        Plotly.newPlot('chart-historical', traces, {
+            ...baseLayout,
+            margin: {t: 10, r: 20, b: 50, l: 50},
+            yaxis: {...baseLayout.yaxis, title: {text: 'Rebased (100)', font: {size: 11}}},
+            showlegend: true, legend: {font: {size: 10}, orientation: 'h', y: -0.2},
+        }, config);
+    });
+
+/* ALLOCATION TREEMAP */
+fetch('{{ url_for("dashboard.chart_allocation") }}')
+    .then(r => r.json()).then(d => {
+        if (!d.labels.length) return;
+        Plotly.newPlot('chart-treemap', [{
+            type: 'treemap',
+            labels: d.labels,
+            parents: d.labels.map(() => ''),
+            values: d.values,
+            text: d.labels.map((l, i) => l + '<br>' + d.values[i].toFixed(1) + '%'),
+            textinfo: 'text',
+            textfont: {family: 'Inter, sans-serif', size: 12},
+            hovertemplate: '%{label}<br>%{value:.1f}%<br>%{customdata}<extra></extra>',
+            customdata: d.categories,
+            marker: {
+                colors: d.values.map((_, i) => theme.colors[i % theme.colors.length]),
+                line: {color: theme.bg, width: 2},
+            },
+        }], {
+            ...baseLayout,
+            margin: {t: 4, r: 4, b: 4, l: 4},
+        }, config);
+    });
+
+/* 30-DAY RETURNS BAR CHART + PERFORMERS */
+let returnsData = null;
+
+fetch('{{ url_for("dashboard.chart_returns") }}')
+    .then(r => r.json()).then(d => {
+        if (!d.symbols.length) return;
+        returnsData = d;
+
+        const colors = d.returns_30d.map(v => v >= 0 ? '#38a169' : '#e53e3e');
+        Plotly.newPlot('chart-returns', [{
+            y: d.symbols, x: d.returns_30d, type: 'bar', orientation: 'h',
+            marker: {color: colors},
+            text: d.returns_30d.map(v => v.toFixed(1) + '%'),
+            textposition: 'outside',
+            textfont: {size: 11},
+            hovertemplate: '%{y}: %{x:.2f}%<extra></extra>',
+        }], {
+            ...baseLayout,
+            margin: {t: 10, r: 60, b: 40, l: 60},
+            xaxis: {...baseLayout.xaxis, title: {text: 'Return %', font: {size: 11}}},
+            yaxis: {...baseLayout.yaxis, autorange: 'reversed'},
+        }, config);
+
+        renderPerformers('30d');
+    });
+
+/* SECTOR BAR CHART */
+fetch('{{ url_for("dashboard.chart_sector") }}')
+    .then(r => r.json()).then(d => {
+        if (!d.labels.length) return;
+        Plotly.newPlot('chart-sector', [{
+            x: d.labels, y: d.values, type: 'bar',
+            marker: {color: d.labels.map((_, i) => theme.colors[i % theme.colors.length])},
+            hovertemplate: '%{x}<br>%{y:.1f}%<extra></extra>',
+        }], {
+            ...baseLayout,
+            margin: {t: 10, r: 20, b: 60, l: 50},
+            yaxis: {...baseLayout.yaxis, title: {text: 'Weight %', font: {size: 11}}},
+            xaxis: {...baseLayout.xaxis, tickangle: -30},
+        }, config);
+    });
+
+/* CORRELATION HEATMAP */
+fetch('{{ url_for("dashboard.chart_correlation") }}')
+    .then(r => r.json()).then(d => {
+        if (!d.symbols.length) return;
+        const annotations = [];
+        for (let i = 0; i < d.symbols.length; i++) {
+            for (let j = 0; j < d.symbols.length; j++) {
+                annotations.push({
+                    x: d.symbols[j], y: d.symbols[i],
+                    text: d.matrix[i][j].toFixed(2),
+                    font: {family: 'JetBrains Mono', size: 9, color: Math.abs(d.matrix[i][j]) > 0.5 ? '#1a1a2e' : '#a0aec0'},
+                    showarrow: false,
+                });
+            }
+        }
+        Plotly.newPlot('chart-correlation', [{
+            z: d.matrix, x: d.symbols, y: d.symbols,
+            type: 'heatmap',
+            colorscale: [[0,'#e53e3e'],[0.5,'#f5f7fa'],[1,'#38a169']],
+            zmin: -1, zmax: 1,
+            showscale: true,
+            colorbar: {
+                title: {text: 'Corr', font: {size: 10}},
+                tickfont: {size: 9},
+                thickness: 12, len: 0.8,
+            },
+        }], {
+            ...baseLayout,
+            margin: {t: 10, r: 60, b: 60, l: 60},
+            xaxis: {...baseLayout.xaxis, tickfont: {size: 10}, tickangle: -45},
+            yaxis: {...baseLayout.yaxis, tickfont: {size: 10}, autorange: 'reversed'},
+            annotations: annotations,
+        }, config);
+    });
+
+/* TOP & BOTTOM PERFORMERS */
+function renderPerformers(timeframe) {
+    if (!returnsData) return;
+    const key = timeframe === '7d' ? 'returns_7d' : 'returns_30d';
+    const paired = returnsData.symbols.map((s, i) => ({symbol: s, ret: returnsData[key][i]}));
+    paired.sort((a, b) => b.ret - a.ret);
+
+    const top3 = paired.slice(0, 3);
+    const bottom3 = paired.slice(-3).reverse();
+
+    const renderList = (items, containerId, isTop) => {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        el.innerHTML = items.map(item => {
+            const arrow = item.ret >= 0 ? '&#9650;' : '&#9660;';
+            const cls = item.ret >= 0 ? 'positive' : 'negative';
+            return `<div class="performer-card">
+                <span class="performer-symbol">${item.symbol}</span>
+                <span class="performer-return ${cls}">${arrow} ${item.ret.toFixed(2)}%</span>
+            </div>`;
+        }).join('');
+    };
+
+    renderList(top3, 'top-performers', true);
+    renderList(bottom3, 'bottom-performers', false);
+}
+
+function setPerformerTimeframe(tf) {
+    document.querySelectorAll('.performer-tf-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tf') === tf);
+    });
+    renderPerformers(tf);
+}
+
+// Function to update all charts when theme changes
+window.updateChartsTheme = function() {
+    theme = getThemeColors();
+    baseLayout = getBaseLayout();
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const lineColor = isDark ? '#63b3ed' : '#1a365d';
+    const fillColor = isDark ? 'rgba(99,179,237,0.1)' : 'rgba(26,54,93,0.06)';
+
+    // Update performance chart line and fill colors
+    const perfEl = document.getElementById('chart-performance');
+    if (perfEl && perfEl.data) {
+        Plotly.restyle('chart-performance', {
+            'line.color': [lineColor],
+            'fillcolor': [fillColor]
+        });
+        Plotly.relayout('chart-performance', {
+            paper_bgcolor: theme.bg,
+            plot_bgcolor: theme.bg,
+            'font.color': theme.text,
+            'xaxis.gridcolor': theme.grid,
+            'yaxis.gridcolor': theme.grid,
+        });
+    }
+
+    // Reload all other charts with new theme
+    const charts = ['chart-historical', 'chart-treemap',
+                    'chart-returns', 'chart-sector', 'chart-correlation'];
+    charts.forEach(chartId => {
+        const el = document.getElementById(chartId);
+        if (el && el.data) {
+            Plotly.relayout(chartId, {
+                paper_bgcolor: theme.bg,
+                plot_bgcolor: theme.bg,
+                'font.color': theme.text,
+                'xaxis.gridcolor': theme.grid,
+                'yaxis.gridcolor': theme.grid,
+            });
+        }
+    });
+};
+</script>
+{% endif %}
+{% endblock %}

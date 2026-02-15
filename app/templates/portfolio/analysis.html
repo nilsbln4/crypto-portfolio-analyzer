@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+{% block title %}Portfolio{% endblock %}
+
+{% block content %}
+<!-- PORTFOLIO SELECTOR BAR -->
+<div class="panel">
+    <div class="panel-header">
+        <div class="portfolio-selector">
+            <select id="portfolio-select" class="form-input" onchange="location.href='/portfolio/analysis/'+this.value">
+                {% for p in portfolios %}
+                <option value="{{ p.id }}" {% if p.id == active_portfolio_id %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <span style="color:var(--text-muted);font-size:11px;">{% if version %}v{{ version.version_num }}{% endif %}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+            <form method="POST" action="{{ url_for('portfolio.create') }}" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="text" name="name" placeholder="New portfolio name" class="form-input" style="width:160px;">
+                <button type="submit" class="btn btn-sm btn-secondary">+ New</button>
+            </form>
+            <form method="POST" action="{{ url_for('portfolio.rename', portfolio_id=portfolio.id) }}" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="text" name="name" placeholder="Rename" class="form-input" style="width:120px;">
+                <button type="submit" class="btn btn-sm btn-secondary">Rename</button>
+            </form>
+            {% if portfolios|length > 1 %}
+            <form method="POST" action="{{ url_for('portfolio.delete', portfolio_id=portfolio.id) }}" onsubmit="return confirm('Delete this portfolio?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- MAIN TWO-COLUMN LAYOUT -->
+<div class="grid grid-2">
+    <!-- LEFT: HOLDINGS & WEIGHT EDITOR -->
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-title">Holdings & Allocations</span>
+        </div>
+        <div class="panel-body">
+            <form method="POST" action="{{ url_for('portfolio.adjustments') }}" id="allocation-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update_allocations">
+                <input type="hidden" name="portfolio_id" value="{{ portfolio.id }}">
+
+                <!-- YOUR HOLDINGS (dynamic) -->
+                <div class="section-title">Your Holdings</div>
+                <table class="data-table" style="font-size:11px;" id="holdings-table">
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>Sector</th>
+                            <th class="num" style="width:80px;">Weight %</th>
+                            <th style="width:32px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="holdings-tbody">
+                        <!-- Rendered by JS -->
+                    </tbody>
+                </table>
+                <div id="holdings-empty" class="empty-state" style="display:none;padding:16px;">
+                    <p>No assets selected. Search below to add assets to your portfolio.</p>
+                </div>
+
+                <!-- Total bar + action buttons -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">
+                    <div>
+                        <span style="color:var(--text-muted);font-size:10px;">TOTAL: </span>
+                        <span id="weight-total" class="weight-total">0.0%</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="hidden" name="normalize" id="normalize-flag" value="">
+                        <button type="button" onclick="normalizeWeights()" class="btn btn-sm btn-secondary">Normalize</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Save Version</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- ADD ASSETS (search & filter) -->
+            <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+                <div class="section-title">Add Assets</div>
+                <input type="text" id="asset-search" class="form-input" placeholder="Search by symbol or name..." oninput="renderSearchResults()" style="margin-bottom:8px;font-size:13px;">
+                <div id="category-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;"></div>
+                <div id="search-results" style="max-height:280px;overflow-y:auto;"></div>
+            </div>
+
+            <!-- STARTER TEMPLATES -->
+            <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+                <div style="color:var(--text-muted);font-size:10px;font-weight:500;margin-bottom:6px;">Load Starter Template</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    {% for t in templates %}
+                    <form method="POST" action="{{ url_for('portfolio.adjustments') }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="load_predefined">
+                        <input type="hidden" name="template_name" value="{{ t.name }}">
+                        <button type="submit" class="btn btn-sm btn-secondary">{{ t.name }}</button>
+                    </form>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: LIVE RISK METRICS -->
+    <div>
+        <div class="panel">
+            <div class="panel-header"><span class="panel-title">Risk Analysis</span></div>
+            <div class="panel-body" id="risk-panel">
+                {% if metrics %}
+                <div class="grid grid-2" style="gap:4px 16px;margin-bottom:10px;">
+                    <div class="metric">
+                        <div class="metric-label">Top-1 Concentration</div>
+                        <div class="metric-value {% if metrics.top1_concentration >= 50 %}warning{% endif %}" id="m-top1" style="font-size:16px;">{{ metrics.top1_concentration }}%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">HHI</div>
+                        <div class="metric-value {% if metrics.hhi >= 5000 %}warning{% endif %}" id="m-hhi" style="font-size:16px;">{{ metrics.hhi }}</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Top-3 Concentration</div>
+                        <div class="metric-value" id="m-top3" style="font-size:16px;">{{ metrics.top3_concentration }}%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Stablecoin Exposure</div>
+                        <div class="metric-value" id="m-stable" style="font-size:16px;">{{ metrics.stablecoin_exposure }}%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Sharpe Ratio</div>
+                        <div class="metric-value" id="m-sharpe" style="font-size:16px;">{{ metrics.sharpe_ratio if metrics.sharpe_ratio is not none else '---' }}</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Beta vs BTC</div>
+                        <div class="metric-value" id="m-beta" style="font-size:16px;">{{ metrics.portfolio_beta if metrics.portfolio_beta is not none else '---' }}</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">VaR (95%)</div>
+                        <div class="metric-value" id="m-var" style="font-size:16px;">{% if metrics.var_95 is not none %}{{ metrics.var_95 }}%{% else %}---{% endif %}</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Diversification</div>
+                        <div class="metric-value" id="m-div" style="font-size:16px;">{% if metrics.diversification_score is not none %}{{ metrics.diversification_score }}/100{% else %}---{% endif %}</div>
+                    </div>
+                </div>
+
+                <!-- Portfolio Returns -->
+                {% if returns %}
+                <div style="margin-bottom:10px;">
+                    <div class="section-title">Portfolio Returns</div>
+                    <div class="grid grid-4" style="gap:4px 12px;" id="returns-display">
+                        <div class="metric">
+                            <div class="metric-label">1D</div>
+                            <div class="metric-value {% if returns.portfolio_return_1d is not none and returns.portfolio_return_1d > 0 %}positive{% elif returns.portfolio_return_1d is not none and returns.portfolio_return_1d < 0 %}negative{% endif %}" id="m-ret-1d" style="font-size:14px;">{% if returns.portfolio_return_1d is not none %}{{ returns.portfolio_return_1d }}%{% else %}---{% endif %}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">7D</div>
+                            <div class="metric-value {% if returns.portfolio_return_7d is not none and returns.portfolio_return_7d > 0 %}positive{% elif returns.portfolio_return_7d is not none and returns.portfolio_return_7d < 0 %}negative{% endif %}" id="m-ret-7d" style="font-size:14px;">{% if returns.portfolio_return_7d is not none %}{{ returns.portfolio_return_7d }}%{% else %}---{% endif %}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">30D</div>
+                            <div class="metric-value {% if returns.portfolio_return_30d is not none and returns.portfolio_return_30d > 0 %}positive{% elif returns.portfolio_return_30d is not none and returns.portfolio_return_30d < 0 %}negative{% endif %}" id="m-ret-30d" style="font-size:14px;">{% if returns.portfolio_return_30d is not none %}{{ returns.portfolio_return_30d }}%{% else %}---{% endif %}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">90D</div>
+                            <div class="metric-value {% if returns.portfolio_return_90d is not none and returns.portfolio_return_90d > 0 %}positive{% elif returns.portfolio_return_90d is not none and returns.portfolio_return_90d < 0 %}negative{% endif %}" id="m-ret-90d" style="font-size:14px;">{% if returns.portfolio_return_90d is not none %}{{ returns.portfolio_return_90d }}%{% else %}---{% endif %}</div>
+                        </div>
+                    </div>
+                    {% if returns.benchmark_return_30d is not none %}
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+                        BTC Benchmark (30D): <span style="font-family:var(--font-mono);color:{% if returns.benchmark_return_30d > 0 %}var(--accent-positive){% elif returns.benchmark_return_30d < 0 %}var(--accent-negative){% else %}var(--text-secondary){% endif %};">{{ returns.benchmark_return_30d }}%</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Sector Exposure -->
+                {% if metrics.sector_exposure %}
+                <div style="margin-bottom:10px;">
+                    <div class="section-title">Sector Exposure</div>
+                    <div id="sector-display">
+                    {% for sector, weight in metrics.sector_exposure.items() %}
+                    <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11px;">
+                        <span style="color:var(--text-secondary);">{{ sector }}</span>
+                        <span style="font-family:var(--font-mono);">{{ weight }}%</span>
+                    </div>
+                    {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Interpretations -->
+                <div id="interpretations">
+                {% for interp in metrics.interpretations %}
+                <div class="interp-block">{{ interp }}</div>
+                {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>Set asset weights and save to see risk analysis.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── DATA ──────────────────────────────────────────── */
+const ALL_ASSETS = {{ assets_json|tojson }};
+const assetMap = {};
+ALL_ASSETS.forEach(a => assetMap[a.id] = a);
+
+const CATEGORIES = ['All', ...new Set(ALL_ASSETS.map(a => a.category).sort())];
+
+const currentHoldings = new Map();
+{% for asset_id, weight in current_holdings.items() %}
+currentHoldings.set({{ asset_id }}, {{ weight }});
+{% endfor %}
+
+let activeCategoryFilter = 'All';
+
+/* ── HOLDINGS TABLE ────────────────────────────────── */
+function renderHoldingsTable() {
+    const tbody = document.getElementById('holdings-tbody');
+    const emptyEl = document.getElementById('holdings-empty');
+    const tableEl = document.getElementById('holdings-table');
+    tbody.innerHTML = '';
+
+    if (currentHoldings.size === 0) {
+        tableEl.style.display = 'none';
+        emptyEl.style.display = 'block';
+        return;
+    }
+    tableEl.style.display = '';
+    emptyEl.style.display = 'none';
+
+    // Sort holdings by weight descending
+    const sorted = [...currentHoldings.entries()].sort((a, b) => b[1] - a[1]);
+
+    sorted.forEach(([assetId, weight]) => {
+        const asset = assetMap[assetId];
+        if (!asset) return;
+        const catClass = asset.category.toLowerCase().replace(/\s+/g, '');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <a href="/asset/${asset.symbol}" style="color:var(--accent-info);font-weight:600;text-decoration:none;">${asset.symbol}</a>
+                <span style="color:var(--text-muted);margin-left:4px;font-size:11px;">${asset.name}</span>
+            </td>
+            <td><span class="tag tag-${catClass}" style="font-size:10px;">${asset.category}</span></td>
+            <td class="num">
+                <input type="number" name="weight_${assetId}" class="weight-input"
+                       value="${weight}" min="0" max="100" step="0.1"
+                       oninput="onHoldingWeightChange(${assetId}, this)">
+            </td>
+            <td style="text-align:center;">
+                <button type="button" onclick="removeAsset(${assetId})" class="holdings-remove-btn" title="Remove">&times;</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+    updateTotal();
+}
+
+function onHoldingWeightChange(assetId, input) {
+    currentHoldings.set(assetId, parseFloat(input.value) || 0);
+    onWeightChange();
+}
+
+function removeAsset(assetId) {
+    currentHoldings.delete(assetId);
+    renderHoldingsTable();
+    renderSearchResults();
+    onWeightChange();
+}
+
+function addAsset(assetId) {
+    if (currentHoldings.has(assetId)) return;
+    currentHoldings.set(assetId, 0);
+    renderHoldingsTable();
+    renderSearchResults();
+    // Focus the new weight input
+    setTimeout(() => {
+        const input = document.querySelector(`input[name="weight_${assetId}"]`);
+        if (input) { input.focus(); input.select(); }
+    }, 50);
+}
+
+/* ── SEARCH & FILTER ───────────────────────────────── */
+function filterAssets() {
+    const query = (document.getElementById('asset-search').value || '').toLowerCase();
+    return ALL_ASSETS.filter(a => {
+        if (currentHoldings.has(a.id)) return false;
+        if (activeCategoryFilter !== 'All' && a.category !== activeCategoryFilter) return false;
+        if (query && !a.symbol.toLowerCase().includes(query) && !a.name.toLowerCase().includes(query)) return false;
+        return true;
+    });
+}
+
+function renderSearchResults() {
+    const container = document.getElementById('search-results');
+    const matches = filterAssets();
+    if (matches.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px 4px;">No matching assets found.</div>';
+        return;
+    }
+    container.innerHTML = matches.map(a => {
+        const catClass = a.category.toLowerCase().replace(/\s+/g, '');
+        return `<div class="search-result-row">
+            <span style="width:55px;color:var(--accent-info);font-weight:600;font-family:var(--font-mono);font-size:12px;">${a.symbol}</span>
+            <span style="flex:1;color:var(--text-secondary);font-size:12px;">${a.name}</span>
+            <span class="tag tag-${catClass}" style="font-size:10px;">${a.category}</span>
+            <button type="button" onclick="addAsset(${a.id})" class="btn btn-sm btn-secondary" style="padding:2px 10px;font-size:11px;">+ Add</button>
+        </div>`;
+    }).join('');
+}
+
+function renderCategoryTabs() {
+    const container = document.getElementById('category-tabs');
+    container.innerHTML = CATEGORIES.map(cat => {
+        const isActive = cat === activeCategoryFilter;
+        return `<button type="button" onclick="setCategoryFilter('${cat}')"
+                    class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-secondary'}"
+                    style="font-size:10px;padding:3px 10px;">${cat}</button>`;
+    }).join('');
+}
+
+function setCategoryFilter(cat) {
+    activeCategoryFilter = cat;
+    renderCategoryTabs();
+    renderSearchResults();
+}
+
+/* ── WEIGHT MANAGEMENT ─────────────────────────────── */
+function updateTotal() {
+    const inputs = document.querySelectorAll('.weight-input');
+    let total = 0;
+    inputs.forEach(i => { total += parseFloat(i.value) || 0; });
+    const el = document.getElementById('weight-total');
+    el.textContent = total.toFixed(1) + '%';
+    el.className = 'weight-total ' + (Math.abs(total - 100) < 0.01 ? 'valid' : 'invalid');
+}
+
+let debounceTimer = null;
+
+function onWeightChange() {
+    updateTotal();
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(fetchRiskPreview, 500);
+}
+
+function fetchRiskPreview() {
+    const inputs = document.querySelectorAll('.weight-input');
+    const holdings = {};
+    inputs.forEach(input => {
+        const assetId = input.name.replace('weight_', '');
+        const weight = parseFloat(input.value) || 0;
+        if (weight > 0) holdings[assetId] = weight;
+    });
+
+    if (Object.keys(holdings).length === 0) return;
+
+    fetch('{{ url_for("portfolio.risk_preview") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({holdings}),
+    })
+    .then(r => r.json())
+    .then(data => { if (!data.error) updateRiskPanel(data); })
+    .catch(() => {});
+}
+
+function updateRiskPanel(d) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('m-top1', d.top1_concentration.toFixed(1) + '%');
+    set('m-hhi', d.hhi.toFixed(0));
+    set('m-top3', d.top3_concentration.toFixed(1) + '%');
+    set('m-stable', d.stablecoin_exposure.toFixed(1) + '%');
+    set('m-sharpe', d.sharpe_ratio != null ? d.sharpe_ratio.toFixed(4) : '---');
+    set('m-beta', d.portfolio_beta != null ? d.portfolio_beta.toFixed(4) : '---');
+    set('m-var', d.var_95 != null ? d.var_95.toFixed(2) + '%' : '---');
+    set('m-div', d.diversification_score != null ? d.diversification_score.toFixed(1) + '/100' : '---');
+
+    const top1El = document.getElementById('m-top1');
+    if (top1El) top1El.className = 'metric-value' + (d.top1_concentration >= 50 ? ' warning' : '');
+    const hhiEl = document.getElementById('m-hhi');
+    if (hhiEl) hhiEl.className = 'metric-value' + (d.hhi >= 5000 ? ' warning' : '');
+
+    const sectorEl = document.getElementById('sector-display');
+    if (sectorEl && d.sector_exposure) {
+        sectorEl.innerHTML = Object.entries(d.sector_exposure).map(([k, v]) =>
+            `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11px;">
+                <span style="color:var(--text-secondary);">${k}</span>
+                <span style="font-family:var(--font-mono);">${v.toFixed(1)}%</span>
+            </div>`
+        ).join('');
+    }
+
+    const interpEl = document.getElementById('interpretations');
+    if (interpEl) {
+        interpEl.innerHTML = d.interpretations.map(i =>
+            `<div class="interp-block">${i}</div>`
+        ).join('');
+    }
+
+    function setReturn(id, val) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (val != null) {
+            el.textContent = val.toFixed(2) + '%';
+            el.className = 'metric-value' + (val > 0 ? ' positive' : val < 0 ? ' negative' : '');
+        } else {
+            el.textContent = '---';
+            el.className = 'metric-value';
+        }
+    }
+    setReturn('m-ret-1d', d.portfolio_return_1d);
+    setReturn('m-ret-7d', d.portfolio_return_7d);
+    setReturn('m-ret-30d', d.portfolio_return_30d);
+    setReturn('m-ret-90d', d.portfolio_return_90d);
+}
+
+function normalizeWeights() {
+    const inputs = document.querySelectorAll('.weight-input');
+    let total = 0;
+    inputs.forEach(i => { total += parseFloat(i.value) || 0; });
+    if (total === 0) return;
+    const factor = 100 / total;
+    inputs.forEach(i => {
+        const val = parseFloat(i.value) || 0;
+        if (val > 0) {
+            const newVal = (val * factor).toFixed(1);
+            i.value = newVal;
+            const assetId = parseInt(i.name.replace('weight_', ''));
+            currentHoldings.set(assetId, parseFloat(newVal));
+        }
+    });
+    onWeightChange();
+}
+
+/* ── INIT ──────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+    renderHoldingsTable();
+    renderCategoryTabs();
+    renderSearchResults();
+});
+</script>
+{% endblock %}

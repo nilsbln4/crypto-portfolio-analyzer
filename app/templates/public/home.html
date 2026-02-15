@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}HOME{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero-title">Crypto Risk <span>Portfolio Analyzer</span></div>
+    <div class="hero-subtitle">
+        Analyze digital-asset portfolio risk drivers. Understand concentration,
+        volatility, sector exposure, and stablecoin dependence — without executing trades.
+    </div>
+    <div class="hero-actions">
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Get Started</a>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Login</a>
+    </div>
+</div>
+
+<div class="grid grid-3">
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">Predefined Portfolios</span></div>
+        <div class="panel-body">
+            Load from 3+ curated starter portfolios: BTC/ETH Core, Balanced Exposure, or High-Risk Speculative.
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">Risk Analytics</span></div>
+        <div class="panel-body">
+            Concentration metrics, volatility contribution, stablecoin exposure, sector breakdown, and drawdown analysis.
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-header"><span class="panel-title">Version History</span></div>
+        <div class="panel-body">
+            Every allocation change is logged. Browse revisions, compare diffs, and generate portfolio reports.
+        </div>
+    </div>
+</div>
+{% endblock %}
